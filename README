@@ -4,7 +4,9 @@ Drupal 7 Imageshow Module
 This module bundles together multiple fields useful for making image
 slideshows with support for text overlays.
 
-Imageshow module supports text formats on the text field.
+Imageshow module supports text formats on the text field. (this feature is
+currently not working and has been disabled, it will be fixed in a future
+update)
 
 A theme function theme_imageshow_formatter is used to generate basic markup
 which should be good enough for most slideshows but can be overridden.

@@ -55,7 +55,6 @@ function imageshow_field_instance_settings_form($field, $instance) {
 	  '#options' => array(
 	    t('Plain text'),
 	    //t('Filtered text (user selects text format)'),
-	    t('Allow html'),
 	  ),
 	);	
 
