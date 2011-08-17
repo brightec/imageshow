@@ -1,0 +1,18 @@
+Drupal 7 Imageshow Module
+=========================
+
+This module bundles together multiple fields useful for making image
+slideshows with support for text overlays.
+
+Imageshow module supports text formats on the text field.
+
+A theme function theme_imageshow_formatter is used to generate basic markup
+which should be good enough for most slideshows but can be overridden.
+
+Usage
+-----
+
+Just add the module to your project and enable it. Once enabled a Imageshow
+field type will be available when creating new fields.
+
+Enjoy.
