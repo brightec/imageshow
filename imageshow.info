@@ -1,0 +1,7 @@
+name = Imageshow
+description = A image + link + text compound field especially designed for image slideshows
+package = Brightec
+core = 7.x
+dependencies[] = field
+dependencies[] = image
+files[] = imageshow.module

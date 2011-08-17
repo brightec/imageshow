@@ -1,0 +1,43 @@
+<?php
+
+/**
+	* Implements hook_field_schema().
+	*/
+function imageshow_field_schema($field) {
+
+	// Get the schema from the image module and merge the fields into our schema.
+  module_load_install('image');
+	$imageSchema = module_invoke('image', 'field_schema', $field);
+	unset($imageSchema['columns']['title']);
+
+	//define columns
+	$columns = array(
+		'value' => array(
+			'type' => 'text',
+			'size' => 'big',			
+			'not null' => FALSE,			
+		),			
+		'format' => array(
+		  'type' => 'varchar',
+		  'length' => 255,
+		  'not null' => FALSE,
+		),		
+    'link' => array(
+      'type' => 'varchar',
+		  'length' => 255,      
+      'not null' => FALSE,
+    ),
+	);
+			
+	$columns += $imageSchema['columns'];
+	$indexes = array_merge($imageSchema['indexes'], array('format' => array('format')));
+	$foreignKeys = array_merge($imageSchema['foreign keys'], array('format' => array('table' => 'filter_format', 'columns' => array('format' => 'format'))));
+		
+	$schema = array(
+		'columns' => $columns,
+		'indexes' => $indexes,
+		'foreign keys' => $foreignKeys,			
+	);
+	
+	return $schema;
+}

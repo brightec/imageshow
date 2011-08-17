@@ -1,0 +1,498 @@
+<?php
+
+/**
+ * @file
+ * Implement an compound field, made up of Image, Title and Text based on the image module's image field.
+ */
+
+
+/************ DEFINE THE FIELD *************/
+
+/**
+	* Implements hook_field_info().
+	*/
+function imageshow_field_info() {
+	$image = module_invoke('image', 'field_info');	
+
+	$field = array(
+		'imageshow' => array(
+			'label' => 'Imageshow',
+			'description' => 'Image, text, link compound field for slideshows',
+			'default_widget' => 'imageshow',
+			'default_formatter' => 'imageshow_default',
+			'settings' => $image['image']['settings'],
+			'instance_settings' => $image['image']['instance_settings'],			
+		),
+	);
+	
+	$field['imageshow']['instance_settings']['text_processing'] = 0;
+	
+	return $field;
+}
+
+/**
+ * Implements hook_field_settings_form().
+ */
+function imageshow_field_settings_form($field, $instance) {
+	return module_invoke('image', 'field_settings_form', $field, $instance);
+}
+
+/**
+ * Implements hook_field_instance_settings_form().
+ */
+function imageshow_field_instance_settings_form($field, $instance) {
+  $settings = $instance['settings'];
+  
+	$form = module_invoke('image', 'field_instance_settings_form', $field, $instance);
+
+	// Remove title option.
+	unset($form['title_field']);
+	
+	$form['text_processing'] = array(
+	  '#type' => 'radios',
+	  '#title' => t('Text processing'),
+	  '#default_value' => $settings['text_processing'],
+	  '#options' => array(
+	    t('Plain text'),
+	    //t('Filtered text (user selects text format)'),
+	    t('Allow html'),
+	  ),
+	);	
+
+	return $form;
+}
+
+/**
+ * Implements hook_field_load().
+ */
+function imageshow_field_load($entity_type, $entities, $field, $instances, $langcode, &$items, $age) {
+  image_field_load($entity_type, $entities, $field, $instances, $langcode, $items, $age);
+  
+	foreach ($entities as $id => $entity) {
+	  foreach ($items[$id] as $delta => $item) {
+	    // Only process items with a cacheable format, the rest will be handled
+	    // by formatters if needed.
+	    if (empty($instances[$id]['settings']['text_processing']) || filter_format_allowcache($item['format'])) {
+	      $items[$id][$delta]['safe_value'] = isset($item['text']) ? _imageshow_text_sanitize($instances[$id], $langcode, $item, 'text') : '';
+	    }
+	  }
+	}
+}
+
+/**
+ * Sanitizes the 'value' data of a text value.
+ *
+ * Depending on whether the field instance uses text processing, data is run
+ * through check_plain() or check_markup().
+ *
+ * @param $instance
+ *   The instance definition.
+ * @param $langcode
+ *  The language associated to $item.
+ * @param $item
+ *   The field value to sanitize.
+ * @param $column
+ *   The column to sanitize (either 'value' or 'summary').
+ *
+ * @return
+ *  The sanitized string.
+ */
+function _imageshow_text_sanitize($instance, $langcode, $item, $column) {
+  // If the value uses a cacheable text format, text_field_load() precomputes
+  // the sanitized string.
+  if (isset($item["safe_$column"])) {
+    return $item["safe_$column"];
+  }
+  
+  return $instance['settings']['text_processing'] ? check_markup($item[$column], $item['format'], $langcode) : check_plain($item[$column]);
+}
+
+/**
+ * Implements hook_field_prepare_view().
+ */
+function imageshow_field_prepare_view($entity_type, $entities, $field, $instances, $langcode, &$items) {
+	image_field_prepare_view($entity_type, $entities, $field, $instances, $langcode, $items);
+}
+
+/**
+ * Implements hook_field_presave().
+ */
+function imageshow_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
+  image_field_presave($entity_type, $entity, $field, $instance, $langcode, $items);
+}
+
+/**
+ * Implements hook_field_insert().
+ */
+function imageshow_field_insert($entity_type, $entity, $field, $instance, $langcode, &$items) {
+  image_field_insert($entity_type, $entity, $field, $instance, $langcode, $items);
+}
+
+/**
+ * Implements hook_field_update().
+ */
+function imageshow_field_update($entity_type, $entity, $field, $instance, $langcode, &$items) {
+  image_field_update($entity_type, $entity, $field, $instance, $langcode, $items);
+}
+
+/**
+ * Implements hook_field_delete().
+ */
+function imageshow_field_delete($entity_type, $entity, $field, $instance, $langcode, &$items) {
+  image_field_delete($entity_type, $entity, $field, $instance, $langcode, $items);
+}
+
+/**
+ * Implements hook_field_delete_revision().
+ */
+function imageshow_field_delete_revision($entity_type, $entity, $field, $instance, $langcode, &$items) {
+  image_field_delete_revision($entity_type, $entity, $field, $instance, $langcode, $items);
+}
+
+/**
+	* Implements hook_field_is_empty().
+	*/
+function imageshow_field_is_empty($item, $field) {
+	return image_field_is_empty($item, $field);
+}
+
+/**
+	* Implements hook_field_validate().
+	*/
+function imageshow_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+//	foreach ($items as $delta => $item) {
+//		if(!empty($item['value'])) {
+//			
+//		}
+//	}
+}
+
+/**
+ * Implements hook_field_prepare_translation().
+ */
+function imageshow_field_prepare_translation($entity_type, $entity, $field, $instance, $langcode, &$items, $source_entity, $source_langcode) {
+  // If the translating user is not permitted to use the assigned text format,
+  // we must not expose the source values.
+  $field_name = $field['field_name'];
+  if (!empty($source_entity->{$field_name}[$source_langcode])) {
+    $formats = filter_formats();
+    foreach ($source_entity->{$field_name}[$source_langcode] as $delta => $item) {
+      $format_id = $item['format'];
+      if (!empty($format_id) && !filter_access($formats[$format_id])) {
+        unset($items[$delta]);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_filter_format_update().
+ */
+function imageshow_filter_format_update($format) {
+  field_cache_clear();
+}
+
+/**
+ * Implements hook_filter_format_disable().
+ */
+function imageshow_filter_format_disable($format) {
+  field_cache_clear();
+}
+
+/************ DEFINE THE WIDGET *************/
+
+/**
+	* Implements hook_field_widget_info().
+	*/
+function imageshow_field_widget_info() {
+	$imageWidget = module_invoke('image', 'field_widget_info');
+
+	$imageWidget['image_image']['settings']['image_style'] = '';
+
+	$widget = array(
+		'imageshow' => array(
+			'label' => t('Default'),
+			'field types' => array('imageshow'),
+			'settings' => $imageWidget['image_image']['settings'],
+			'behaviors' => $imageWidget['image_image']['behaviors'],
+		),
+	);
+	
+	return $widget;
+}
+
+/**
+ * Implements hook_field_widget_settings_form().
+ */
+function imageshow_field_widget_settings_form($field, $instance) {
+	return image_field_widget_settings_form($field, $instance);
+}
+
+/**
+	* Implements hook_field_widget_form().
+	*/
+function imageshow_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+	$elements = image_field_widget_form($form, $form_state, $field, $instance, $langcode, $items, $delta, $element);
+	foreach (element_children($elements) as $delta) {	
+		foreach ($elements[$delta]['#process'] as $key => $process) {
+			if($process == 'image_field_widget_process') {
+				unset($elements[$delta]['#process'][$key]);
+			}
+		}	
+	  $elements[$delta]['#process'][] = 'imageshow_widget_process';	
+	}
+	
+	return $elements;
+}
+
+/**
+ * Element #process callback function.
+ *
+ * @param array $element
+ * @param arrayreference $form_state
+ * @param array $form
+ * @return array
+ */
+function imageshow_widget_process($element, &$form_state, $form) {
+
+	$element = @image_field_widget_process($element, $form_state, $form);
+
+	$item = $element['#value'];
+	$item['fid'] = $element['fid']['#value'];
+	
+  $instance = field_widget_instance($element, $form_state);
+  
+	$settings = $instance['settings'];
+	$widget_settings = $instance['widget']['settings'];  
+		
+	// add extra fields
+//	$element['text'] = array(
+//		'#type' => 'textarea',
+//		'#title' => 'Text',
+//		'#default_value' => isset($item['value']) ? $item['value'] : '',
+//	);	
+//	
+//	if($instance['settings']['text_processing']) {
+//	  $element['text']['#type'] = 'text_format';
+//	  $element['text']['#format'] = isset($item['format']) ? $item['format'] : NULL;
+//	  $element['text']['#base_type'] = 'textarea';
+//	}		
+//	
+//	$element['value'] = array(
+//		'#type' => 'hidden',
+//		'#value_callback' => 'value_field_callback',
+//	);
+//	
+//	$element['format'] = array(
+//		'#type' => 'hidden',
+//		'#value_callback' => 'format_field_callback',
+//	);	
+
+	$element['value'] = array(
+		'#type' => 'textarea',
+		'#title' => 'Text',
+		'#default_value' => isset($item['value']) ? $item['value'] : '',
+	);	
+	
+	$element['link'] = array(
+		'#type' => 'textfield',
+		'#title' => 'Link',
+		'#default_value' => isset($item['link']) ? $item['link'] : '',
+	);	
+	
+	//$element['#attached']['js'][] = drupal_get_path('module', 'imageshow') . '/imageshow.js';
+		
+	return $element;
+}
+
+//function value_field_callback($element, $input = FALSE, $form_state) {
+//	$field = $element['#parents'][0];
+//	return $form_state['values'][$field]['und'][0]['text']['value'];
+//}
+//
+//function format_field_callback($element, $input = FALSE, $form_state) {
+//	$field = $element['#parents'][0];
+//	return $form_state['values'][$field]['und'][0]['text']['format'];
+//}
+
+
+/************ DEFINE THE FORMATTER *************/
+
+/**
+	* Implements hook_field_formatter_info().
+	*/
+function imageshow_field_formatter_info() {
+	return array(
+		'imageshow_default' => array(
+			'label' => t('Default'),
+			'field types' => array('imageshow'),
+			'settings' => array('image_style' => '', 'image_link' => '', 'text_html_wrapper' => 'div'),
+		),
+	);
+}
+
+/**
+ * Implements hook_field_formatter_settings_form().
+ */
+function imageshow_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+	$element =  image_field_formatter_settings_form($field, $instance, $view_mode, $form, $form_state);
+	
+	$display = $instance['display'][$view_mode];
+	$settings = $display['settings']; 
+	
+	$options = array(
+		'div' => 'Default (DIV)',
+		'p' => 'P',		
+		'h2' => 'H2',		
+		'h3' => 'H3',				
+		'h4' => 'H4',						
+		'h5' => 'H5',						
+		'h6' => 'H6',										
+		'strong' => 'STRONG',	
+		'em' => 'EM',		
+	);
+
+	$element['text_html_wrapper'] = array(
+	  '#type' => 'select',
+	  '#title' => t('Wrap Text field in HTML element'),
+	  '#options' => $options,
+	  '#default_value' => $settings['text_html_wrapper'],
+	  '#description' => t('Select the the HTML element to wrap the Text field if required.'),
+	);		
+	
+	return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function imageshow_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $summary[] = image_field_formatter_settings_summary($field, $instance, $view_mode);
+  
+	$display = $instance['display'][$view_mode];
+	$settings = $display['settings'];  
+	
+	if(isset($settings['text_html_wrapper'])) {
+		$summary[] .= t('Text field wrapped in HTML :text_wrap element.', array(':text_wrap' => strtoupper($settings['text_html_wrapper'])));
+	}	
+	
+  return implode('<br />', $summary);
+}
+
+/**
+	* Implements hook_field_formatter_view().
+	*/
+function imageshow_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+
+  // Check if the formatter involves a link.
+  if ($display['settings']['image_link'] == 'content') {
+    $uri = entity_uri($entity_type, $entity);
+  }
+  elseif ($display['settings']['image_link'] == 'file') {
+    $link_file = TRUE;
+  }
+
+  foreach ($items as $delta => $item) {
+    if (isset($link_file)) {
+      $uri = array(
+        'path' => file_create_url($item['uri']),
+        'options' => array(),
+      );
+    }
+    
+    $element[$delta] = array(
+      '#theme' => 'imageshow_formatter',
+      '#item' => $item,
+      '#image_style' => $display['settings']['image_style'],
+      '#text_html_wrapper' => $display['settings']['text_html_wrapper'],            
+      '#path' => isset($uri) ? $uri : '',
+      '#delta' => $delta,
+      '#deltaCount' => count($items),
+    );
+  }
+
+  return $element;	
+}
+
+
+
+/************ DEFINE THE THEME *************/
+
+/**
+	* Implements hook_theme().
+	*/
+function imageshow_theme() {
+  return array(
+    'imageshow_formatter' => array (
+      'variables' => array('item' => NULL, 'path' => NULL, 'image_style' => NULL, 'text_html_wrapper' => NULL, 'delta' => NULL, 'deltaCount' => NULL),
+    ),
+  );
+}
+
+/**
+ * Returns HTML for an blop field formatter.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - item: An array of blop data.
+ *   - path: An array containing the link 'path' and link 'options'. 
+ *   - image_style: An optional image style. 
+ *   - title_html_wrapper: HTML element to wrap title field.
+ *   - text_html_wrapper: HTML element to wrap text field.
+ *
+ * @ingroup themeable
+ */
+function theme_imageshow_formatter($variables) {
+	
+	$item = $variables['item'];
+	$delta = $variables['delta'];
+
+	$image = array(
+	  'path' => $item['uri'],
+	  'alt' => $item['alt'],
+	);	
+	
+	$textWrap = $variables['text_html_wrapper'];	
+	
+	// generate classes
+	$classes = array();
+	$classes[] = 'imageshow-field-' . $delta;
+	if($delta == 0) {
+		$classes[] = 'first';		
+	}
+	if($delta == $variables['deltaCount']-1) {
+		$classes[] = 'last';		
+	}		
+	
+	$output = '<div class="imageshow-field ' . implode(' ', $classes) . '">';
+	
+	if ($item['link']) {
+	  $output .= ' <a class="imageshow-link" href="' . check_plain($item['link']) . '">';
+	}	
+	
+	$output .= '<div class="imageshow-field-image">';
+	
+	// Render image HTML
+	if ($variables['image_style']) {
+	  $image['style_name'] = $variables['image_style'];
+	  $output .= theme('image_style', $image);
+	}
+	else {
+	  $output .= theme('image', $image);
+	}	
+	
+	$output .= '</div>';
+	$output .= '<div class="imageshow-field-content">';
+	$output .= '<' . $textWrap . ' class="imageshow-field-text">' . field_filter_xss($item['value']) . '</' . $textWrap . '>';
+  $output .= '</div>';	
+  
+	if ($item['link']) {
+		$output .= '</a>';
+	}     
+  
+  $output .= '</div>';
+  
+	return $output;
+}
